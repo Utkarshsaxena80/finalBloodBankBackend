@@ -10,7 +10,7 @@ interface TokenPayload {
 /**
  * @description Express middleware to protect routes.
  * It verifies a JWT from cookies and checks if the user's email
- * matches the email provided in the request body.
+ * matches the email in the admin db 
  */
 
 export const checkToken = async (req: Request, res: Response, next: NextFunction) => {
@@ -20,9 +20,7 @@ export const checkToken = async (req: Request, res: Response, next: NextFunction
       return res.status(401).json({ error: 'Unauthorized: No token provided. Please log in.' });
     }
     const decoded = verifyToken(token) as TokenPayload;
-
     const userIdFromToken = decoded.userId;
-
      console.log(userIdFromToken)
 
     if (!userIdFromToken) {
@@ -35,6 +33,9 @@ export const checkToken = async (req: Request, res: Response, next: NextFunction
       return res.status(400).json({ error: 'Bad Request: Email must be provided in the request body.' });
     }
     console.log("user permitteed to go further")
+    //attaching the emailId of the token dharak 
+    req.requestId=email1.email
+    
     next();
 
   } catch (error) {
