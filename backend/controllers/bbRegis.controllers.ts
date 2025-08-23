@@ -1,18 +1,10 @@
 import { Request, Response } from "express";
 import { z } from "zod";
-import bcrypt from "bcrypt";
-// import jwt from "jsonwebtoken"; // You'll need this for generating tokens
-import { PrismaClient } from '@prisma/client';
-import { generateToken } from "../utils/jwt.utils.ts";
+import bcrypt from "bcrypt";import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-/**
- * Zod schema for the combined registration of a Blood Bank and its first Admin.
- * It validates the nested structure of the request body.
- */
 const combinedRegistrationSchema = z.object({
-  // Blood Bank Details
   bloodBank: z.object({
     name: z.string().trim().min(1, { message: "Blood bank name is required" }),
     address: z.string().trim().min(1, { message: "Address is required" }),
@@ -28,7 +20,6 @@ const combinedRegistrationSchema = z.object({
     ifsc: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC code"),
     upiId: z.string().regex(/^[\w.-]+@[\w.-]+$/, "Invalid UPI ID").optional(),
   }),
-  // First Administrator Details
   admin: z.object({
     name: z.string().trim().min(1, { message: "Admin name is required" }),
     designation: z.string().trim().min(1, { message: "Designation is required" }),
@@ -43,12 +34,11 @@ const combinedRegistrationSchema = z.object({
  * @description Registers a new blood bank and its first administrator.
  * @access Public
  */
+
 const unifiedRegistration = async (req: Request, res: Response): Promise<void> => {
   try {
-    // 1. Validate the entire request body
     const { bloodBank: bloodBankData, admin: adminData } = combinedRegistrationSchema.parse(req.body);
 
-    // 2. Check for existing records before starting the transaction
     const existingBloodBank = await prisma.bloodBank.findFirst({
       where: { OR: [{ email: bloodBankData.email }, { registrationNo: bloodBankData.registrationNo }] },
     });
@@ -63,41 +53,24 @@ const unifiedRegistration = async (req: Request, res: Response): Promise<void> =
       res.status(409).json({ success: false, message: "An admin with this email already exists." });
       return;
     }
-
-    // 3. Hash the administrator's password
+    
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(adminData.password, salt);
 
-    // 4. Use a transaction to create both records atomically
     const result = await prisma.$transaction(async (tx) => {
-      // Create the Blood Bank first
       const newBloodBank = await tx.bloodBank.create({
         data: bloodBankData,
       });
-
-      // Create the Admin and link it to the new Blood Bank
       const newAdmin = await tx.admin.create({
         data: {
           ...adminData,
           password: hashedPassword,
-          bloodBankId: newBloodBank.id, // Link to the blood bank
+          bloodBankId: newBloodBank.id,
         },
       });
 
       return { newBloodBank, newAdmin };
     });
-
-    // Omit the password from the response
-    const token= generateToken(result.newAdmin.id)
-    //token will have the id of the first admin of blood bank 
-
-    res.cookie('jwt', token, {
-        httpOnly: true, 
-        secure: process.env.NODE_ENV !== 'development', 
-        sameSite: 'strict',
-        maxAge: 7* 24 * 60 * 60 * 1000,   
-    });
-    
     const { password, ...adminResult } = result.newAdmin;
 
     res.status(201).json({
@@ -118,5 +91,4 @@ const unifiedRegistration = async (req: Request, res: Response): Promise<void> =
     }
   }
 };
-
 export { unifiedRegistration };

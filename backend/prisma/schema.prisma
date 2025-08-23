@@ -32,9 +32,13 @@ model BloodBank {
 
   // Relation: A BloodBank can have many Admins
   admins             Admin[]
+  
+   ownedGroups        BloodBankGroup[] @relation("GroupOwner")
+  memberships        GroupMember[]
 
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+   sentRequests GroupJoinRequest[] @relation("Requester")
 }
 
 model Admin {
@@ -52,6 +56,7 @@ model Admin {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
 model OTP {
   id        String   @id @default(cuid())
   otp       String
@@ -59,4 +64,50 @@ model OTP {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model BloodBankGroup {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  ownerId     String
+  owner       BloodBank   @relation("GroupOwner", fields: [ownerId], references: [id])
+   
+    joinRequests GroupJoinRequest[]
+  members     GroupMember[]
+}
+
+// This table connects BloodBanks and BloodBankGroups (many-to-many relationship)
+model GroupMember {
+  id               String         @id @default(cuid())
+  joinedAt         DateTime       @default(now())
+
+  bloodBankId      String
+  bloodBankGroupId String
+
+  bloodBank        BloodBank      @relation(fields: [bloodBankId], references: [id])
+  bloodBankGroup   BloodBankGroup @relation(fields: [bloodBankGroupId], references: [id])
+
+  @@unique([bloodBankId, bloodBankGroupId])
+}
+// Model to track requests to join a group
+model GroupJoinRequest {
+  id        String   @id @default(cuid())
+  status    String   @default("PENDING") // PENDING, APPROVED, DENIED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation: The BloodBank that sent the request
+  requesterId String
+  requester   BloodBank @relation("Requester", fields: [requesterId], references: [id])
+
+  // Relation: The group they want to join
+  groupId     String
+  group       BloodBankGroup @relation(fields: [groupId], references: [id])
+
+  // Prevents sending duplicate requests
+  @@unique([requesterId, groupId])
 }

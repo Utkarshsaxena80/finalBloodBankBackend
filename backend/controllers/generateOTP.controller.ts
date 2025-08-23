@@ -1,23 +1,22 @@
 
 import {Request,Response} from 'express'
 import {prisma} from '../utils/prisma.utils.ts'
-import {resend} from '../utils/resend_email.utils.ts'
+import { sendMail } from '../services/mailer.services.ts'
+
 const sendOtpService=async(email:string,otp:string)=>{
-resend.emails.send({
-  from: 'utkarshsaxena851@gmail.com',
-  to: email,
-  subject: 'Hello World',
-  html: '<p>Congrats on sending your <strong>first email</strong>!</p>'
-})
+ await sendMail(email,"Authentication OTP ",otp)
 }
+
 const sendOTP1=async(req:Request,res:Response)=>{
     const {email}:{email:string}=req.body
+
    if(!email){
     res.status(400).json({error:'Email is required'})
    }
+
    try{
        const otp=Math.floor(100000+Math.random()*900000).toString()
-       const expiresAt= new Date(Date.now()+10*60*1000)
+       const expiresAt= new Date(Date.now()+10*60*1000)//10 minutes
 
        await prisma.oTP.upsert({
         where:{identifier:email},

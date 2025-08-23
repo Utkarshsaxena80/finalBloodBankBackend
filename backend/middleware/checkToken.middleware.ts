@@ -13,7 +13,7 @@ interface TokenPayload {
  * matches the email provided in the request body.
  */
 
-export const protectRouteAndCheckEmail = async (req: Request, res: Response, next: NextFunction) => {
+export const checkToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies.jwt;
     if (!token) {
@@ -22,20 +22,17 @@ export const protectRouteAndCheckEmail = async (req: Request, res: Response, nex
     const decoded = verifyToken(token) as TokenPayload;
 
     const userIdFromToken = decoded.userId;
-  console.log(userIdFromToken)
+
+     console.log(userIdFromToken)
 
     if (!userIdFromToken) {
       return res.status(404).json({ error: 'User not found.' });
     }
-    const  email = req.body.admin.email as {email?:string};
-    console.log(req.body);
-    console.log(email)
-    if (!email) {
+   const email1=await prisma.admin.findUnique({
+    where:{email:userIdFromToken}
+   })
+    if (!email1) {
       return res.status(400).json({ error: 'Bad Request: Email must be provided in the request body.' });
-    }
-
-    if (userIdFromToken !== email) {
-      return res.status(403).json({ error: 'Forbidden: You are not authorized to perform this action.' });
     }
     console.log("user permitteed to go further")
     next();
